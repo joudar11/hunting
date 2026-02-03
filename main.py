@@ -37,7 +37,6 @@ def send_email(html_content):
     msg['To'] = EMAIL_TO
     msg['Subject'] = f"Hunting Bazar: Nové inzeráty za poslední {DAYS_BACK} dny"
 
-    msg.attach(MIMEText(html_content, 'html'))
     if os.path.exists(OUTPUT_FILE):
         with open(OUTPUT_FILE, "rb") as attachment:
             part = MIMEBase("application", "octet-stream")
@@ -49,6 +48,9 @@ def send_email(html_content):
             f"attachment; filename= {OUTPUT_FILE}",
         )
         msg.attach(part)
+        msg.attach(MIMEText("V příloze nalezneš výpis inzerátů.", 'html'))
+    else:
+        msg.attach(MIMEText(html_content, 'html'))
 
     try:
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -133,7 +135,7 @@ def scrape_hunting_bazar():
             
             print(f"Stránka {page} hotova...")
             page += 1
-            time.sleep(1.5)
+            time.sleep(1.5) # Pauza, aby nás server hned nezařízl
             
         except Exception as e:
             print(f"Chyba: {e}")
@@ -146,7 +148,7 @@ def generate_html(ads):
     current_date_str = datetime.now().strftime('%d. %m. %Y')
     threshold_date_str = (datetime.now() - timedelta(days=DAYS_BACK)).strftime('%d. %m. %Y')
     
-    # Unikátní seznam míst pro filtr
+    # Získáme unikátní seznam míst pro filtr
     locations = sorted(list(set(ad['location'] for ad in ads)))
     location_options = "".join([f'<option value="{loc}">{loc}</option>' for loc in locations])
 
@@ -241,12 +243,12 @@ def generate_html(ads):
                     let valB = b.cells[colIndex].textContent.trim();
 
                     if (colIndex === 3) {{
-                        valA = parseInt(valA.replace(/\D/g, '')) || 0;
-                        valB = parseInt(valB.replace(/\D/g, '')) || 0;
+                        // Oprava SyntaxWarning: Použijeme [^0-9] místo \\D
+                        valA = parseInt(valA.replace(/[^0-9]/g, '')) || 0;
+                        valB = parseInt(valB.replace(/[^0-9]/g, '')) || 0;
                     }}
                     
                     if (colIndex === 0) {{
-                        // Převod českého datumu na porovnatelný formát
                         valA = valA.split('. ').reverse().join('-');
                         valB = valB.split('. ').reverse().join('-');
                     }}
