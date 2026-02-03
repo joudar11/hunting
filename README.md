@@ -66,7 +66,6 @@ bash run.sh
 Po spuštění:
 - proběhne stažení inzerátů
 - vytvoří se soubor `vysledek_inzeraty.html`
-- soubor lze otevřít v libovolném prohlížeči
 
 ---
 
@@ -120,3 +119,6 @@ Soubor je plně interaktivní (řazení, filtrování) bez potřeby serveru.
 
 MIT License  
 Používej rozumně a férově.
+
+
+README.md je soubor vygenerovaný AI.
