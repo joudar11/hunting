@@ -286,15 +286,44 @@ def generate_html(ads):
             tr:hover {{ background: rgba(255, 255, 255, 0.02); }}
 
             .price-val {{ font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }}
-            .date {{ color: var(--text-dim); font-size: 0.9rem; white-space: nowrap; }}
+            .date {{ color: var(--text-main); font-size: 0.9rem; white-space: nowrap; }}
             .time {{ color: var(--text-dim); font-size: 0.75rem; opacity: 0.7; }}
             
             a {{ color: var(--text-main); text-decoration: none; font-weight: 500; }}
             a:hover {{ color: var(--accent); }}
             
             @media (max-width: 768px) {{
-                th:nth-child(3), td:nth-child(3) {{ display: none; }}
+                body {{ padding: 10px; }}
                 .header {{ flex-direction: column; align-items: flex-start; gap: 15px; }}
+                h2 {{ font-size: 1.5rem; }}
+                
+                table, thead, tbody, th, td, tr {{ display: block; }}
+                thead tr {{ position: absolute; top: -9999px; left: -9999px; }}
+                tr {{ border-bottom: 2px solid var(--border); padding: 10px 0; }}
+                td {{ 
+                    border: none; 
+                    position: relative; 
+                    padding-left: 35% !important; 
+                    text-align: left; 
+                    min-height: 30px;
+                }}
+                td:before {{ 
+                    position: absolute; 
+                    left: 10px; 
+                    width: 30%; 
+                    white-space: nowrap; 
+                    color: var(--text-dim);
+                    font-size: 0.7rem;
+                    text-transform: uppercase;
+                    font-weight: bold;
+                }}
+                td:nth-of-type(1):before {{ content: "Datum"; }}
+                td:nth-of-type(2):before {{ content: "Inzerát"; }}
+                td:nth-of-type(3):before {{ content: "Místo"; }}
+                td:nth-of-type(4):before {{ content: "Cena"; }}
+                
+                .controls {{ grid-template-columns: 1fr; padding: 15px; }}
+                .btn-group {{ display: grid; grid-template-columns: 1fr 1fr; }}
             }}
         </style>
     </head>
@@ -400,7 +429,6 @@ def generate_html(ads):
                         valB = parseInt(valB.replace(/[^0-9]/g, '')) || 0;
                     }}
                     if (colIndex === 0) {{
-                        // Převod "03. 02. 2026 12:58:34" na sortovatelný formát
                         const parseDateTime = (s) => {{
                             const parts = s.split(' ');
                             const dateParts = parts[0].split('.');
