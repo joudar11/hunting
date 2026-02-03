@@ -15,7 +15,7 @@ import io
 from data import SMTP_PASSWORD, SMTP_PORT, SMTP_SERVER, SMTP_USER, FTP_HOST, FTP_PASS, FTP_PATH, FTP_USER, EMAIL_TO
 
 # KONFIGURACE
-DAYS_BACK = 2
+DAYS_BACK = 7
 BASE_URL = "https://bazar.hunting-shop.cz/sekce/51-bazar-zbrane/"
 OUTPUT_FILE = "inzeraty.html"
 
