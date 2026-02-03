@@ -119,13 +119,16 @@ def scrape_hunting_bazar():
                 if not date_span:
                     continue
                 
-                date_match = re.search(r'(\d{2}\. \d{2}\. \d{4})', date_span.text)
+                # Upravený regex pro zachycení data i času
+                date_match = re.search(r'(\d{2}\. \d{2}\. \d{4}), (\d{2}:\d{2}:\d{2})', date_span.text)
                 if not date_match:
                     continue
                 
-                ad_date = datetime.strptime(date_match.group(1), '%d. %m. %Y')
+                ad_date_str = date_match.group(1)
+                ad_time_str = date_match.group(2)
+                ad_date_dt = datetime.strptime(ad_date_str, '%d. %m. %Y')
                 
-                if ad_date < threshold_date:
+                if ad_date_dt < threshold_date:
                     continue_scraping = False
                     break
                 
@@ -145,7 +148,8 @@ def scrape_hunting_bazar():
                     'title': title,
                     'price': price,
                     'location': location,
-                    'date': date_match.group(1),
+                    'date': ad_date_str,
+                    'time': ad_time_str,
                     'link': link
                 })
             
@@ -161,8 +165,10 @@ def scrape_hunting_bazar():
 
 def generate_html(ads):
     # Příprava dat pro hlavičku
-    current_date_str = datetime.now().strftime('%d. %m. %Y')
-    threshold_date_str = (datetime.now() - timedelta(days=DAYS_BACK)).strftime('%d. %m. %Y')
+    now = datetime.now()
+    current_date_str = now.strftime('%d. %m. %Y')
+    generation_time_str = now.strftime('%d. %m. %Y %H:%M')
+    threshold_date_str = (now - timedelta(days=DAYS_BACK)).strftime('%d. %m. %Y')
     
     # Získáme unikátní seznam míst pro filtr
     locations = sorted(list(set(ad['location'] for ad in ads)))
@@ -209,7 +215,7 @@ def generate_html(ads):
             
             .controls {{ 
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 gap: 20px;
                 background: var(--card-bg);
                 padding: 24px;
@@ -220,6 +226,8 @@ def generate_html(ads):
             }}
 
             .control-group {{ display: flex; flex-direction: column; gap: 8px; }}
+            .checkbox-group {{ flex-direction: row; align-items: center; gap: 10px; cursor: pointer; }}
+            .checkbox-group input {{ width: auto; cursor: pointer; }}
             label {{ font-size: 0.75rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }}
 
             input, select {{ 
@@ -238,15 +246,16 @@ def generate_html(ads):
             .price-inputs {{ display: flex; gap: 8px; }}
             .price-inputs input {{ width: 100%; }}
 
-            .btn-group {{ display: flex; gap: 10px; }}
+            .btn-group {{ display: flex; flex-wrap: wrap; gap: 8px; }}
             .sort-btn {{ 
                 flex: 1;
-                padding: 10px;
+                min-width: 120px;
+                padding: 8px;
                 background: var(--border);
                 border: none;
                 border-radius: 8px;
                 color: var(--text-main);
-                font-size: 0.85rem;
+                font-size: 0.75rem;
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.2s;
@@ -277,7 +286,8 @@ def generate_html(ads):
             tr:hover {{ background: rgba(255, 255, 255, 0.02); }}
 
             .price-val {{ font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }}
-            .date {{ color: var(--text-dim); font-size: 0.9rem; }}
+            .date {{ color: var(--text-dim); font-size: 0.9rem; white-space: nowrap; }}
+            .time {{ color: var(--text-dim); font-size: 0.75rem; opacity: 0.7; }}
             
             a {{ color: var(--text-main); text-decoration: none; font-weight: 500; }}
             a:hover {{ color: var(--accent); }}
@@ -294,6 +304,7 @@ def generate_html(ads):
                 <div>
                     <h2>Hunting Bazar</h2>
                     <div style="color: var(--text-dim)">Období: {start} – {end}</div>
+                    <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 5px;">Vygenerováno: {gen_time}</div>
                 </div>
                 <div style="text-align: right">
                     <div style="font-size: 1.8rem; font-weight: 800; line-height: 1;">{count}</div>
@@ -320,11 +331,17 @@ def generate_html(ads):
                         <input type="number" id="priceMax" oninput="applyFilters()" placeholder="Max">
                     </div>
                 </div>
+                <div class="control-group checkbox-group">
+                    <input type="checkbox" id="hideNoPrice" onchange="applyFilters()">
+                    <label for="hideNoPrice" style="cursor: pointer; text-transform: none;">Skrýt neuvedenou cenu</label>
+                </div>
                 <div class="control-group">
-                    <label>Seřadit dle ceny</label>
+                    <label>Seřadit výsledky</label>
                     <div class="btn-group">
-                        <button class="sort-btn" onclick="sortTable(3, 'asc')">Od nejlevnějšího</button>
-                        <button class="sort-btn" onclick="sortTable(3, 'desc')">Od nejdražšího</button>
+                        <button class="sort-btn" onclick="sortTable(3, 'asc')">Nejlevnější</button>
+                        <button class="sort-btn" onclick="sortTable(3, 'desc')">Nejdražší</button>
+                        <button class="sort-btn" onclick="sortTable(0, 'desc')">Nejnovější</button>
+                        <button class="sort-btn" onclick="sortTable(0, 'asc')">Nejstarší</button>
                     </div>
                 </div>
             </div>
@@ -333,7 +350,7 @@ def generate_html(ads):
                 <table id="adTable">
                     <thead>
                         <tr>
-                            <th onclick="sortTable(0, 'desc')">Datum</th>
+                            <th onclick="sortTable(0, 'desc')">Datum a čas</th>
                             <th>Inzerát</th>
                             <th>Místo</th>
                             <th onclick="sortTable(3, 'asc')">Cena</th>
@@ -352,6 +369,7 @@ def generate_html(ads):
                 const searchFilter = document.getElementById('searchInput').value.toLowerCase();
                 const minPrice = parseInt(document.getElementById('priceMin').value) || 0;
                 const maxPrice = parseInt(document.getElementById('priceMax').value) || Infinity;
+                const hideNoPrice = document.getElementById('hideNoPrice').checked;
                 
                 const rows = document.getElementById('tableBody').getElementsByTagName('tr');
                 
@@ -359,11 +377,12 @@ def generate_html(ads):
                     const title = row.getElementsByTagName('td')[1].textContent.toLowerCase();
                     const location = row.getElementsByTagName('td')[2].textContent;
                     const priceText = row.getElementsByTagName('td')[3].textContent;
+                    const isNoPrice = priceText.toLowerCase().includes('neuvedena');
                     const priceNum = parseInt(priceText.replace(/[^0-9]/g, '')) || 0;
                     
                     const matchesLoc = (locFilter === 'all' || location === locFilter);
                     const matchesSearch = title.includes(searchFilter);
-                    const matchesPrice = (priceNum >= minPrice && priceNum <= maxPrice);
+                    const matchesPrice = isNoPrice ? !hideNoPrice : (priceNum >= minPrice && priceNum <= maxPrice);
                     
                     row.style.display = (matchesLoc && matchesSearch && matchesPrice) ? "" : "none";
                 }}
@@ -373,15 +392,22 @@ def generate_html(ads):
                 const tbody = document.getElementById("tableBody");
                 const rows = Array.from(tbody.rows);
                 const sortedRows = rows.sort((a, b) => {{
-                    let valA = a.cells[colIndex].textContent.trim();
-                    let valB = b.cells[colIndex].textContent.trim();
+                    let valA = a.cells[colIndex].innerText.trim();
+                    let valB = b.cells[colIndex].innerText.trim();
+
                     if (colIndex === 3) {{
                         valA = parseInt(valA.replace(/[^0-9]/g, '')) || 0;
                         valB = parseInt(valB.replace(/[^0-9]/g, '')) || 0;
                     }}
                     if (colIndex === 0) {{
-                        valA = valA.split('. ').reverse().join('-');
-                        valB = valB.split('. ').reverse().join('-');
+                        // Převod "03. 02. 2026 12:58:34" na sortovatelný formát
+                        const parseDateTime = (s) => {{
+                            const parts = s.split(' ');
+                            const dateParts = parts[0].split('.');
+                            return dateParts[2] + dateParts[1] + dateParts[0] + parts[1];
+                        }};
+                        valA = parseDateTime(valA);
+                        valB = parseDateTime(valB);
                     }}
                     if (dir === 'asc') return valA > valB ? 1 : -1;
                     return valA < valB ? 1 : -1;
@@ -398,7 +424,7 @@ def generate_html(ads):
     for ad in ads:
         rows += f"""
         <tr>
-            <td class="date">{ad['date']}</td>
+            <td class="date">{ad['date']} <span class="time">{ad['time']}</span></td>
             <td><a href="{ad['link']}" target="_blank">{ad['title']}</a></td>
             <td style="color: var(--text-dim);">{ad['location']}</td>
             <td class="price-val">{ad['price']}</td>
@@ -408,6 +434,7 @@ def generate_html(ads):
     final_output = html_template.format(
         start=threshold_date_str, 
         end=current_date_str, 
+        gen_time=generation_time_str,
         location_options=location_options, 
         rows=rows,
         count=len(ads)
