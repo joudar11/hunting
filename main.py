@@ -166,9 +166,10 @@ def generate_html(ads):
             h2 {{ color: #2F2D14; margin: 0 0 5px 0; }}
             .date-range {{ color: #555; font-style: italic; font-size: 1.1em; }}
             
-            .controls {{ display: flex; gap: 20px; margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; align-items: center; justify-content: center; border: 1px solid #eee; }}
-            select, button {{ padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: white; }}
-            button {{ background: #7D8873; color: white; border: none; font-weight: bold; transition: 0.2s; }}
+            .controls {{ display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; align-items: center; justify-content: center; border: 1px solid #eee; }}
+            select, button, input {{ padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: white; }}
+            input {{ width: 250px; }}
+            button {{ background: #7D8873; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }}
             button:hover {{ background: #5d6656; }}
 
             table {{ width: 100%; border-collapse: collapse; }}
@@ -194,14 +195,18 @@ def generate_html(ads):
             
             <div class="controls">
                 <div>
-                    <strong>Filtr místa: </strong>
-                    <select id="locationFilter" onchange="filterTable()">
+                    <strong>Hledat v názvu: </strong>
+                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Např. Blaser, optika...">
+                </div>
+                <div>
+                    <strong>Místo: </strong>
+                    <select id="locationFilter" onchange="applyFilters()">
                         <option value="all">Všechny regiony</option>
                         {location_options}
                     </select>
                 </div>
                 <div>
-                    <strong>Rychlé řazení ceny: </strong>
+                    <strong>Cena: </strong>
                     <button onclick="sortTable(3, 'asc')">Nejlevnější</button>
                     <button onclick="sortTable(3, 'desc')">Nejdražší</button>
                 </div>
@@ -224,13 +229,19 @@ def generate_html(ads):
         </div>
 
         <script>
-            function filterTable() {{
-                const filter = document.getElementById('locationFilter').value;
+            function applyFilters() {{
+                const locFilter = document.getElementById('locationFilter').value;
+                const searchFilter = document.getElementById('searchInput').value.toLowerCase();
                 const rows = document.getElementById('tableBody').getElementsByTagName('tr');
                 
                 for (let row of rows) {{
+                    const title = row.getElementsByTagName('td')[1].textContent.toLowerCase();
                     const location = row.getElementsByTagName('td')[2].textContent;
-                    row.style.display = (filter === 'all' || location === filter) ? "" : "none";
+                    
+                    const matchesLoc = (locFilter === 'all' || location === locFilter);
+                    const matchesSearch = title.includes(searchFilter);
+                    
+                    row.style.display = (matchesLoc && matchesSearch) ? "" : "none";
                 }}
             }}
 
@@ -243,7 +254,6 @@ def generate_html(ads):
                     let valB = b.cells[colIndex].textContent.trim();
 
                     if (colIndex === 3) {{
-                        // Oprava SyntaxWarning: Použijeme [^0-9] místo \\D
                         valA = parseInt(valA.replace(/[^0-9]/g, '')) || 0;
                         valB = parseInt(valB.replace(/[^0-9]/g, '')) || 0;
                     }}
@@ -289,7 +299,7 @@ def generate_html(ads):
     print(f"Výsledek byl úspěšně vygenerován do souboru: {OUTPUT_FILE}")
 
     if SEND_EMAIL:
-        send_email(final_output)    
+        send_email(final_output)  
 
 if __name__ == "__main__":
     scrape_hunting_bazar()
