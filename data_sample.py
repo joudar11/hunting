@@ -1,0 +1,9 @@
+SMTP_SERVER = "smtp.protonmail.ch"  # Změň podle svého poskytovatele
+SMTP_PORT = 587
+SMTP_USER = "sluzebnicek@mojedomena.cz"
+SMTP_PASSWORD = "T@jneHeslo123"
+EMAIL_TO = "me@mojedomena.cz"
+FTP_HOST = "ftp.tvujserver.cz"
+FTP_USER = "uzivatel"
+FTP_PASS = "heslo"
+FTP_PATH = "/www/hunting_bazar.html"

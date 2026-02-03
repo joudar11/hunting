@@ -9,19 +9,18 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import ftplib
+import io
+
+from data import SMTP_PASSWORD, SMTP_PORT, SMTP_SERVER, SMTP_USER, FTP_HOST, FTP_PASS, FTP_PATH, FTP_USER, EMAIL_TO
 
 # KONFIGURACE
 DAYS_BACK = 2
 BASE_URL = "https://bazar.hunting-shop.cz/sekce/51-bazar-zbrane/"
-OUTPUT_FILE = "vysledek_inzeraty.html"
+OUTPUT_FILE = "inzeraty.html"
 
-# KONFIGURACE SMTP (Port 587, TLS)
-SMTP_SERVER = "smtp.protonmail.ch"
-SMTP_PORT = 587
-SMTP_USER = "odesilatel@domena.cz"
-SMTP_PASSWORD = "heslo"
-EMAIL_TO = "prijemce@domena.cz"
 SEND_EMAIL = False  # Přepni na False, pokud chceš jen generovat soubor. True, pokud chceš výsledek posílat emailem.
+UPLOAD_TO_FTP = True
 
 # Legitimní hlavičky prohlížeče pro obejití 403
 HEADERS = {
@@ -30,6 +29,23 @@ HEADERS = {
     "Accept-Language": "cs-CZ,cs;q=0.9,en;q=0.8",
     "Referer": "https://bazar.hunting-shop.cz/"
 }
+
+def upload_to_ftp(html_content):
+    try:
+        # Použijeme io.BytesIO, abychom nemuseli soubor znovu číst z disku
+        bio = io.BytesIO(html_content.encode('utf-8'))
+        
+        with ftplib.FTP(FTP_HOST) as ftp:
+            ftp.login(user=FTP_USER, passwd=FTP_PASS)
+            # Přepnutí do pasivního režimu (obvykle nutné pro servery za firewallem)
+            ftp.set_pasv(True)
+            
+            # Nahrání souboru
+            ftp.storbinary(f"STOR {FTP_PATH}", bio)
+            
+        print(f"Soubor byl úspěšně nahrán na FTP: {FTP_HOST}")
+    except Exception as e:
+        print(f"Chyba při nahrávání na FTP: {e}")
 
 def send_email(html_content):
     msg = MIMEMultipart()
@@ -157,116 +173,219 @@ def generate_html(ads):
     <html lang="cs">
     <head>
         <meta charset="UTF-8">
-        <title>Hunting Bazar Scraper</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hunting Bazar Monitor</title>
         <style>
-            body {{ font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f0; padding: 20px; color: #333; }}
-            .container {{ max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
-            
-            .header-info {{ text-align: center; border-bottom: 3px solid #7D8873; padding-bottom: 15px; margin-bottom: 20px; }}
-            h2 {{ color: #2F2D14; margin: 0 0 5px 0; }}
-            .date-range {{ color: #555; font-style: italic; font-size: 1.1em; }}
-            
-            .controls {{ display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; align-items: center; justify-content: center; border: 1px solid #eee; }}
-            select, button, input {{ padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: white; }}
-            input {{ width: 250px; }}
-            button {{ background: #7D8873; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }}
-            button:hover {{ background: #5d6656; }}
+            :root {{
+                --bg: #0f172a;
+                --card-bg: #1e293b;
+                --text-main: #f1f5f9;
+                --text-dim: #94a3b8;
+                --accent: #38bdf8;
+                --border: #334155;
+            }}
 
-            table {{ width: 100%; border-collapse: collapse; }}
-            th, td {{ padding: 12px 15px; border-bottom: 1px solid #eee; text-align: left; }}
-            th {{ background-color: #2F2D14; color: white; cursor: pointer; transition: 0.2s; }}
-            th:hover {{ background-color: #45421d; }}
+            body {{ 
+                font-family: 'Inter', -apple-system, sans-serif; 
+                background-color: var(--bg); 
+                color: var(--text-main);
+                margin: 0;
+                padding: 40px 20px;
+                line-height: 1.5;
+            }}
+
+            .container {{ max-width: 1200px; margin: auto; }}
             
-            tr:hover {{ background-color: #fcfcfc; }}
-            .price-val {{ font-weight: bold; color: #2c3e50; }}
-            .date {{ color: #666; font-size: 0.9em; }}
-            a {{ color: #7D8873; text-decoration: none; font-weight: bold; }}
-            a:hover {{ text-decoration: underline; }}
+            .header {{ 
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 20px;
+                margin-bottom: 40px;
+            }}
+
+            h2 {{ margin: 0; font-size: 2rem; font-weight: 800; color: var(--accent); }}
             
-            .stats {{ margin-top: 15px; font-size: 0.9em; color: #888; text-align: right; }}
+            .controls {{ 
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 20px;
+                background: var(--card-bg);
+                padding: 24px;
+                border-radius: 16px;
+                margin-bottom: 30px;
+                border: 1px solid var(--border);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            }}
+
+            .control-group {{ display: flex; flex-direction: column; gap: 8px; }}
+            label {{ font-size: 0.75rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }}
+
+            input, select {{ 
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text-main);
+                padding: 10px 14px;
+                border-radius: 8px;
+                font-size: 0.95rem;
+                outline: none;
+                transition: border-color 0.2s;
+            }}
+
+            input:focus, select:focus {{ border-color: var(--accent); }}
+
+            .price-inputs {{ display: flex; gap: 8px; }}
+            .price-inputs input {{ width: 100%; }}
+
+            .btn-group {{ display: flex; gap: 10px; }}
+            .sort-btn {{ 
+                flex: 1;
+                padding: 10px;
+                background: var(--border);
+                border: none;
+                border-radius: 8px;
+                color: var(--text-main);
+                font-size: 0.85rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                white-space: nowrap;
+            }}
+
+            .sort-btn:hover {{ background: var(--accent); color: var(--bg); }}
+
+            .table-container {{
+                background: var(--card-bg);
+                border-radius: 16px;
+                overflow: hidden;
+                border: 1px solid var(--border);
+            }}
+
+            table {{ width: 100%; border-collapse: collapse; text-align: left; }}
+            th {{ 
+                background: rgba(15, 23, 42, 0.5);
+                padding: 16px;
+                font-size: 0.8rem;
+                color: var(--text-dim);
+                text-transform: uppercase;
+                cursor: pointer;
+                user-select: none;
+            }}
+            
+            td {{ padding: 16px; border-bottom: 1px solid var(--border); }}
+            tr:hover {{ background: rgba(255, 255, 255, 0.02); }}
+
+            .price-val {{ font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }}
+            .date {{ color: var(--text-dim); font-size: 0.9rem; }}
+            
+            a {{ color: var(--text-main); text-decoration: none; font-weight: 500; }}
+            a:hover {{ color: var(--accent); }}
+            
+            @media (max-width: 768px) {{
+                th:nth-child(3), td:nth-child(3) {{ display: none; }}
+                .header {{ flex-direction: column; align-items: flex-start; gap: 15px; }}
+            }}
         </style>
     </head>
     <body>
         <div class="container">
-            <div class="header-info">
-                <h2>Nové inzeráty z Hunting Bazaru</h2>
-                <div class="date-range">Zahrnuté období: <strong>{start}</strong> až <strong>{end}</strong></div>
+            <div class="header">
+                <div>
+                    <h2>Hunting Bazar</h2>
+                    <div style="color: var(--text-dim)">Období: {start} – {end}</div>
+                </div>
+                <div style="text-align: right">
+                    <div style="font-size: 1.8rem; font-weight: 800; line-height: 1;">{count}</div>
+                    <div style="color: var(--text-dim); font-size: 0.75rem; font-weight: 600; margin-top: 4px;">INZERÁTŮ CELKEM</div>
+                </div>
             </div>
             
             <div class="controls">
-                <div>
-                    <strong>Hledat v názvu: </strong>
-                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Např. Blaser, optika...">
+                <div class="control-group">
+                    <label>Hledat v názvu</label>
+                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Např. Blaser, Tikka...">
                 </div>
-                <div>
-                    <strong>Místo: </strong>
+                <div class="control-group">
+                    <label>Lokalita</label>
                     <select id="locationFilter" onchange="applyFilters()">
                         <option value="all">Všechny regiony</option>
                         {location_options}
                     </select>
                 </div>
-                <div>
-                    <strong>Cena: </strong>
-                    <button onclick="sortTable(3, 'asc')">Nejlevnější</button>
-                    <button onclick="sortTable(3, 'desc')">Nejdražší</button>
+                <div class="control-group">
+                    <label>Cena (od - do)</label>
+                    <div class="price-inputs">
+                        <input type="number" id="priceMin" oninput="applyFilters()" placeholder="Min">
+                        <input type="number" id="priceMax" oninput="applyFilters()" placeholder="Max">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Seřadit dle ceny</label>
+                    <div class="btn-group">
+                        <button class="sort-btn" onclick="sortTable(3, 'asc')">Od nejlevnějšího</button>
+                        <button class="sort-btn" onclick="sortTable(3, 'desc')">Od nejdražšího</button>
+                    </div>
                 </div>
             </div>
 
-            <table id="adTable">
-                <thead>
-                    <tr>
-                        <th onclick="sortTable(0, 'desc')" title="Klikněte pro seřazení">Datum</th>
-                        <th>Inzerát (název a odkaz)</th>
-                        <th>Místo prodeje</th>
-                        <th onclick="sortTable(3, 'asc')" title="Klikněte pro seřazení">Cena</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    {rows}
-                </tbody>
-            </table>
-            <div class="stats">Celkem nalezeno inzerátů: {count}</div>
+            <div class="table-container">
+                <table id="adTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0, 'desc')">Datum</th>
+                            <th>Inzerát</th>
+                            <th>Místo</th>
+                            <th onclick="sortTable(3, 'asc')">Cena</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        {rows}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <script>
             function applyFilters() {{
                 const locFilter = document.getElementById('locationFilter').value;
                 const searchFilter = document.getElementById('searchInput').value.toLowerCase();
+                const minPrice = parseInt(document.getElementById('priceMin').value) || 0;
+                const maxPrice = parseInt(document.getElementById('priceMax').value) || Infinity;
+                
                 const rows = document.getElementById('tableBody').getElementsByTagName('tr');
                 
                 for (let row of rows) {{
                     const title = row.getElementsByTagName('td')[1].textContent.toLowerCase();
                     const location = row.getElementsByTagName('td')[2].textContent;
+                    const priceText = row.getElementsByTagName('td')[3].textContent;
+                    const priceNum = parseInt(priceText.replace(/[^0-9]/g, '')) || 0;
                     
                     const matchesLoc = (locFilter === 'all' || location === locFilter);
                     const matchesSearch = title.includes(searchFilter);
+                    const matchesPrice = (priceNum >= minPrice && priceNum <= maxPrice);
                     
-                    row.style.display = (matchesLoc && matchesSearch) ? "" : "none";
+                    row.style.display = (matchesLoc && matchesSearch && matchesPrice) ? "" : "none";
                 }}
             }}
 
             function sortTable(colIndex, dir) {{
                 const tbody = document.getElementById("tableBody");
                 const rows = Array.from(tbody.rows);
-
                 const sortedRows = rows.sort((a, b) => {{
                     let valA = a.cells[colIndex].textContent.trim();
                     let valB = b.cells[colIndex].textContent.trim();
-
                     if (colIndex === 3) {{
                         valA = parseInt(valA.replace(/[^0-9]/g, '')) || 0;
                         valB = parseInt(valB.replace(/[^0-9]/g, '')) || 0;
                     }}
-                    
                     if (colIndex === 0) {{
                         valA = valA.split('. ').reverse().join('-');
                         valB = valB.split('. ').reverse().join('-');
                     }}
-
                     if (dir === 'asc') return valA > valB ? 1 : -1;
                     return valA < valB ? 1 : -1;
                 }});
-
                 while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
                 tbody.append(...sortedRows);
             }}
@@ -281,7 +400,7 @@ def generate_html(ads):
         <tr>
             <td class="date">{ad['date']}</td>
             <td><a href="{ad['link']}" target="_blank">{ad['title']}</a></td>
-            <td>{ad['location']}</td>
+            <td style="color: var(--text-dim);">{ad['location']}</td>
             <td class="price-val">{ad['price']}</td>
         </tr>
         """
@@ -296,10 +415,13 @@ def generate_html(ads):
     
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(final_output)
-    print(f"Výsledek byl úspěšně vygenerován do souboru: {OUTPUT_FILE}")
+    
+    print(f"HTML dashboard úspěšně aktualizován: {OUTPUT_FILE}")
 
     if SEND_EMAIL:
         send_email(final_output)  
+    if UPLOAD_TO_FTP:
+        upload_to_ftp(final_output)
 
 if __name__ == "__main__":
     scrape_hunting_bazar()

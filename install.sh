@@ -47,6 +47,12 @@ python -m pip install --upgrade pip
 echo "📦 Instalace závislostí…"
 pip install -r requirements.txt
 
+# Přejmenuj data_sample.py -> data.py pouze pokud data.py ještě neexistuje
+if [[ -f "data_sample.py" && ! -f "data.py" ]]; then
+  echo "📁 Kopíruji data_sample.py → data.py"
+  cp data_sample.py data.py
+fi
+
 # Deaktivace venv
 type deactivate >/dev/null 2>&1 && deactivate || true
 
