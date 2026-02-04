@@ -214,9 +214,9 @@ def generate_html(ads):
             h2 {{ margin: 0; font-size: 2rem; font-weight: 800; color: var(--accent); }}
             
             .controls {{ 
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 24px;
                 background: var(--card-bg);
                 padding: 24px;
                 border-radius: 16px;
@@ -225,8 +225,14 @@ def generate_html(ads):
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
             }}
 
-            .control-group {{ display: flex; flex-direction: column; gap: 8px; }}
-            .checkbox-group {{ flex-direction: row; align-items: center; gap: 10px; cursor: pointer; }}
+            .control-group {{ 
+                display: flex; 
+                flex-direction: column; 
+                gap: 8px; 
+                flex: 1 1 200px;
+            }}
+            
+            .checkbox-group {{ flex-direction: row; align-items: center; gap: 10px; cursor: pointer; flex: 1 1 100%; }}
             .checkbox-group input {{ width: auto; cursor: pointer; }}
             label {{ font-size: 0.75rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }}
 
@@ -239,17 +245,22 @@ def generate_html(ads):
                 font-size: 0.95rem;
                 outline: none;
                 transition: border-color 0.2s;
+                width: 100%;
+                box-sizing: border-box;
             }}
 
             input:focus, select:focus {{ border-color: var(--accent); }}
 
-            .price-inputs {{ display: flex; gap: 8px; }}
-            .price-inputs input {{ width: 100%; }}
+            .price-inputs, .date-inputs {{ 
+                display: flex; 
+                gap: 8px; 
+                flex-wrap: wrap;
+            }}
+            .price-inputs input, .date-inputs input {{ flex: 1 1 140px; }}
 
             .btn-group {{ display: flex; flex-wrap: wrap; gap: 8px; }}
             .sort-btn {{ 
-                flex: 1;
-                min-width: 120px;
+                flex: 1 1 120px;
                 padding: 8px;
                 background: var(--border);
                 border: none;
@@ -322,7 +333,7 @@ def generate_html(ads):
                 td:nth-of-type(3):before {{ content: "Místo"; }}
                 td:nth-of-type(4):before {{ content: "Cena"; }}
                 
-                .controls {{ grid-template-columns: 1fr; padding: 15px; }}
+                .controls {{ flex-direction: column; gap: 20px; padding: 15px; }}
                 .btn-group {{ display: grid; grid-template-columns: 1fr 1fr; }}
             }}
         </style>
@@ -354,6 +365,13 @@ def generate_html(ads):
                     </select>
                 </div>
                 <div class="control-group">
+                    <label>Datum a čas (od - do)</label>
+                    <div class="date-inputs">
+                        <input type="datetime-local" id="dateMin" oninput="applyFilters()">
+                        <input type="datetime-local" id="dateMax" oninput="applyFilters()">
+                    </div>
+                </div>
+                <div class="control-group">
                     <label>Cena (od - do)</label>
                     <div class="price-inputs">
                         <input type="number" id="priceMin" oninput="applyFilters()" placeholder="Min">
@@ -364,7 +382,7 @@ def generate_html(ads):
                     <input type="checkbox" id="hideNoPrice" onchange="applyFilters()">
                     <label for="hideNoPrice" style="cursor: pointer; text-transform: none;">Skrýt neuvedenou cenu</label>
                 </div>
-                <div class="control-group">
+                <div class="control-group" style="flex: 1 1 100%;">
                     <label>Seřadit výsledky</label>
                     <div class="btn-group">
                         <button class="sort-btn" onclick="sortTable(3, 'asc')">Nejlevnější</button>
@@ -400,12 +418,27 @@ def generate_html(ads):
                 const maxPrice = parseInt(document.getElementById('priceMax').value) || Infinity;
                 const hideNoPrice = document.getElementById('hideNoPrice').checked;
                 
+                const dateMinVal = document.getElementById('dateMin').value;
+                const dateMaxVal = document.getElementById('dateMax').value;
+                const dateMin = dateMinVal ? new Date(dateMinVal).getTime() : null;
+                const dateMax = dateMaxVal ? new Date(dateMaxVal).getTime() : null;
+                
                 const rows = document.getElementById('tableBody').getElementsByTagName('tr');
                 
                 for (let row of rows) {{
+                    const dateTd = row.getElementsByTagName('td')[0];
+                    const dateText = dateTd.textContent.trim();
                     const title = row.getElementsByTagName('td')[1].textContent.toLowerCase();
                     const location = row.getElementsByTagName('td')[2].textContent;
                     const priceText = row.getElementsByTagName('td')[3].textContent;
+                    
+                    // Bezpečné parsování data z textu "DD. MM. YYYY HH:MM:SS"
+                    const parts = dateText.split(',');
+                    const dParts = parts[0].trim().split('.');
+                    const tParts = parts[1].trim().split(':');
+                    // Konstrukce: Rok, Měsíc (0-11), Den, Hodina, Minuta, Sekunda
+                    const adDate = new Date(dParts[2], dParts[1]-1, dParts[0], tParts[0], tParts[1], tParts[2]).getTime();
+
                     const isNoPrice = priceText.toLowerCase().includes('neuvedena');
                     const priceNum = parseInt(priceText.replace(/[^0-9]/g, '')) || 0;
                     
@@ -413,7 +446,10 @@ def generate_html(ads):
                     const matchesSearch = title.includes(searchFilter);
                     const matchesPrice = isNoPrice ? !hideNoPrice : (priceNum >= minPrice && priceNum <= maxPrice);
                     
-                    row.style.display = (matchesLoc && matchesSearch && matchesPrice) ? "" : "none";
+                    const matchesDateMin = !dateMin || adDate >= dateMin;
+                    const matchesDateMax = !dateMax || adDate <= dateMax;
+                    
+                    row.style.display = (matchesLoc && matchesSearch && matchesPrice && matchesDateMin && matchesDateMax) ? "" : "none";
                 }}
             }}
 
@@ -430,9 +466,10 @@ def generate_html(ads):
                     }}
                     if (colIndex === 0) {{
                         const parseDateTime = (s) => {{
-                            const parts = s.split(' ');
-                            const dateParts = parts[0].split('.');
-                            return dateParts[2] + dateParts[1] + dateParts[0] + parts[1];
+                            const parts = s.split(',');
+                            const dateParts = parts[0].trim().split('.');
+                            const timeParts = parts[1].trim().split(':');
+                            return dateParts[2] + dateParts[1].padStart(2, '0') + dateParts[0].padStart(2, '0') + timeParts.join('');
                         }};
                         valA = parseDateTime(valA);
                         valB = parseDateTime(valB);
@@ -452,7 +489,7 @@ def generate_html(ads):
     for ad in ads:
         rows += f"""
         <tr>
-            <td class="date">{ad['date']} <span class="time">{ad['time']}</span></td>
+            <td class="date">{ad['date']}, {ad['time']}</td>
             <td><a href="{ad['link']}" target="_blank">{ad['title']}</a></td>
             <td style="color: var(--text-dim);">{ad['location']}</td>
             <td class="price-val">{ad['price']}</td>
