@@ -100,7 +100,7 @@ def scrape_hunting_bazar():
         }
         
         try:
-            response = session.get(BASE_URL, params=params, timeout=10)
+            response = session.get(BASE_URL, params=params, timeout=30)
             
             if response.status_code == 403:
                 print("Chyba 403: Přístup odepřen. Server tě blokuje.")
@@ -155,7 +155,7 @@ def scrape_hunting_bazar():
             
             print(f"Stránka {page} hotova...")
             page += 1
-            # time.sleep(0.15) # Pauza, aby nás server hned nezařízl
+            time.sleep(0.33) # Pauza, aby nás server hned nezařízl
             
         except Exception as e:
             print(f"Chyba: {e}")
