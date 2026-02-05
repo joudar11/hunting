@@ -155,7 +155,7 @@ def scrape_hunting_bazar():
             
             print(f"Stránka {page} hotova...")
             page += 1
-            time.sleep(1.5) # Pauza, aby nás server hned nezařízl
+            # time.sleep(0.15) # Pauza, aby nás server hned nezařízl
             
         except Exception as e:
             print(f"Chyba: {e}")
