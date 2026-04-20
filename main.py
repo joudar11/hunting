@@ -345,6 +345,7 @@ def generate_html(ads):
                     <h2>Hunting Bazar</h2>
                     <div style="color: var(--text-dim)">Období: {start} – {end}</div>
                     <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 5px;">Vygenerováno: {gen_time}</div>
+                    <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 15px;"><a href="https://app.krystofklika.cz" target="_blank">Author: Kryštof Klika</a></div>
                 </div>
                 <div style="text-align: right">
                     <div style="font-size: 1.8rem; font-weight: 800; line-height: 1;">{count}</div>
