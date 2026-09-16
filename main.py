@@ -32,20 +32,18 @@ HEADERS = {
 
 def upload_to_ftp(html_content):
     try:
-        # Použijeme io.BytesIO, abychom nemuseli soubor znovu číst z disku
-        bio = io.BytesIO(html_content.encode('utf-8'))
+        url = f"ftp://{FTP_HOST}/{FTP_PATH}"
         
-        with ftplib.FTP(FTP_HOST) as ftp:
-            ftp.login(user=FTP_USER, passwd=FTP_PASS)
-            # Přepnutí do pasivního režimu (obvykle nutné pro servery za firewallem)
-            ftp.set_pasv(True)
-            
-            # Nahrání souboru
-            ftp.storbinary(f"STOR {FTP_PATH}", bio)
-            
-        print(f"Soubor byl úspěšně nahrán na FTP: {FTP_HOST}")
-    except Exception as e:
-        print(f"Chyba při nahrávání na FTP: {e}")
+        result = subprocess.run(
+            ['curl', '--ssl-reqd', '-u', f"{FTP_USER}:{FTP_PASS}", '-T', '-', url],
+            input=html_content.encode('utf-8'),
+            capture_output=True,
+            check=True
+        )
+        print(f"Soubor byl úspěšně nahrán přes curl na: {FTP_HOST}")
+    except subprocess.CalledProcessError as e:
+        error_message = e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)
+        print(f"Chyba při nahrávání přes curl: {error_message}")
 
 def send_email(html_content):
     msg = MIMEMultipart()
